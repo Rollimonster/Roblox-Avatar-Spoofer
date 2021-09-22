@@ -1,0 +1,166 @@
+local S = setmetatable({},{__index = function(s,i) return game:service(i) end})
+local CF = {N=CFrame.new,A=CFrame.Angles,fEA=CFrame.fromEulerAnglesXYZ}
+local C3 = {tRGB= function(c3) return c3.r*255,c3.g*255,c3.b*255 end,N=Color3.new,RGB=Color3.fromRGB,HSV=Color3.fromHSV,tHSV=Color3.toHSV}
+local V3 = {N=Vector3.new,FNI=Vector3.FromNormalId,A=Vector3.FromAxis}
+local M = {C=math.cos,R=math.rad,S=math.sin,P=math.pi,RNG=math.random,MRS=math.randomseed,H=math.huge,RRNG = function(min,max,div) return math.rad(math.random(min,max)/(div or 1)) end}
+local R3 = {N=Region3.new}
+local WS = workspace
+local Lght = S.Lighting
+local RepS = S.ReplicatedStorage
+local IN = Instance.new
+local Plrs = S.Players
+
+local Plr = Plrs.LocalPlayer
+local Char = Plr.Character
+local Torso = Char.Torso
+local Head = Char.Head
+local NeutralAnims = true
+local Attack = false
+local StillAura = false
+local Debounces = {Debounces={}}
+local Mouse = Plr:GetMouse()
+local Hit = {}
+local Sine = 0
+local Change = 1
+local BloodPuddles = {}
+
+function Debounces:Use(overrideUsable)
+	assert(self.Usable ~= nil and self.LastUse ~= nil and self.CoolingDown ~= nil,"Expected ':' not '.' calling member function Use")
+	if(self.Usable or overrideUsable)then
+		self.Usable = false
+		self.CoolingDown = true
+		local LastUse = time()
+		self.LastUse = LastUse
+		delay(self.Cooldown or 2,function()
+			if(self.LastUse == LastUse)then
+				self.CoolingDown = false
+				self.Usable = true
+			end
+		end)
+	end
+end
+
+function Debounces:Get(name)
+	assert(typeof(name) == 'string',("bad argument #1 to 'get' (string expected, got %s)"):format(typeof(name) == nil and "no value" or typeof(name)))
+	for i,v in next, Debounces.Debounces do
+		if(i == name)then
+			return v;
+		end
+	end
+end
+
+local baseSound = IN("Sound")
+function Sound(parent,id,pitch,volume,looped,effect,autoPlay)
+	local Sound = baseSound:Clone()
+	if(autoPlay)then
+		coroutine.wrap(function()
+			repeat wait() until Sound.IsLoaded
+			Sound.Playing = autoPlay or false
+		end)()
+	end
+	if(not looped and effect)then
+		Sound.Stopped:connect(function()
+		end)
+	elseif(effect)then
+		warn("Sound can't be looped and a sound effect!")
+	end
+	Sound.Parent =parent or Torso
+	return Sound
+end
+
+local Instance = setmetatable({ClearChildrenOfClass = function(where,class,recursive) local children = (recursive and where:GetDescendants() or where:GetChildren()) for _,v in next, children do if(v:IsA(class))then v:destroy();end;end;end},{__index = Instance})
+
+function CamShake(who,times,intense,origin) 
+	coroutine.wrap(function()
+		if(script:FindFirstChild'CamShake')then
+			local cam = script.CamShake:Clone()
+			cam:WaitForChild'intensity'.Value = intense
+			cam:WaitForChild'times'.Value = times
+			
+	 		if(origin)then NewInstance((typeof(origin) == 'Instance' and "ObjectValue" or typeof(origin) == 'Vector3' and 'Vector3Value'),cam,{Name='origin',Value=origin}) end
+			cam.Parent = who
+			wait()
+			cam.Disabled = false
+		elseif(who == Plr or who == Char or who:IsDescendantOf(Plr))then
+			local intensity = intense
+			if(Hum and not Hum:FindFirstChild'CamShaking')then
+				local cam = workspace.CurrentCamera
+				local oCO = Hum.CameraOffset
+				local cs = Instance.new("BoolValue",Hum)
+				cs.Name = "CamShaking"
+				for i = 1, times do
+					local camDistFromOrigin
+					if(typeof(origin) == 'Instance' and origin:IsA'BasePart')then
+						camDistFromOrigin = math.floor( (cam.CoordinateFrame.p-origin.Position).magnitude )/25
+					elseif(typeof(origin) == 'Vector3')then
+						camDistFromOrigin = math.floor( (cam.CoordinateFrame.p-origin).magnitude )/25
+					end
+					if(camDistFromOrigin)then
+						intensity = math.min(intense, math.floor(intense/camDistFromOrigin))
+					end
+					
+					if(Hum)then
+						Hum.CameraOffset = Vector3.new(math.random(-intensity,intensity)/200,math.random(-intensity,intensity)/200,math.random(-intensity,intensity)/200)
+					end
+					swait()
+				end
+				if(Hum)then
+					Hum.CameraOffset = oCO
+				end
+				cs:destroy()
+			end
+		end
+	end)()
+end
+
+
+function CamShakeAll(times,intense,origin)
+	for _,v in next, Plrs:players() do
+		CamShake(v:FindFirstChildOfClass'PlayerGui' or v:FindFirstChildOfClass'Backpack' or v.Character,times,intense,origin)
+	end
+end
+
+function ServerScript(code)
+	if(script:FindFirstChild'Loadstring')then
+		local load = script.Loadstring:Clone()
+		load:WaitForChild'Sauce'.Value = code
+		load.Disabled = false
+		load.Parent = workspace
+	elseif(NS and typeof(NS) == 'function')then
+		NS(code,workspace)
+	else
+		warn("Shit")
+	end	
+end
+
+function Nametag(color,tag)
+	local r,g,b = C3.tRGB(color)
+	local c3 = C3.RGB(r/2,g/2,b/2)
+	local name = chold['Nametag']
+	if(not name)then
+		name = NewInstance("BillboardGui",nil,{MaxDistance=150,AlwaysOnTop=true,Active=false,Size=UDim2.new(5,0,1,0),SizeOffset=Vector2.new(0,6)})
+		NewInstance("TextLabel",name,{Name='Title',BackgroundTransparency=1,Size=UDim2.new(2.5,0,1.5,0),Position=UDim2.new(-.75,0,0,0),Text=tag,Font=Enum.Font.Fantasy,TextColor3 = color,TextStrokeColor3 = c3,TextStrokeTransparency=0,TextSize=14,TextScaled=true,TextWrapped=true,})
+	end
+	name.Title.Text = tag
+	name.Title.TextColor3 = color
+	name.Title.TextStrokeColor3 = c3
+	
+	name.Parent = Char
+	name.Adornee = Head
+		
+	return name
+end
+Remove_Hats = true
+Remove_Clothing = true
+
+if(Remove_Hats)then Instance.ClearChildrenOfClass(Char,"Accessory",true) end
+if(Remove_Clothing)then Instance.ClearChildrenOfClass(Char,"Clothing",true) Instance.ClearChildrenOfClass(Char,"ShirtGraphic",true) end
+
+Head:ClearAllChildren()
+Head.Transparency = 0
+headGay:breakJoints();
+headGay.Parent = Head
+headGay.Transparency = 0
+
+local headMesh = Mesh(headGay,Enum.MeshType.FileMesh,'rbxassetid://','rbxassetid://')
+Weld(headGay,Head)
